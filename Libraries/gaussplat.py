@@ -33,12 +33,13 @@ class GaussObject:
         return pdf_values
 
     def plot(self,coordinates, ny, nx):
-        pdf_values = self.computeValues(coordinates, ny, nx)
-        plt.figure()
-        plt.imshow(pdf_values.detach().numpy())
-        plt.colorbar()
-        plt.xlabel('X')
-        plt.ylabel('Y')
+        # pdf_values = self.computeValues(coordinates, ny, nx)
+        # plt.figure()
+        # plt.imshow(pdf_values.detach().numpy())
+        # plt.colorbar()
+        # plt.xlabel('X')
+        # plt.ylabel('Y')
+        return 
 
     def gradStep(self,learningrate):
         # self.mux.data = self.mux.data - learningrate[0]*self.mux.grad.data
