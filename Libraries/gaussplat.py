@@ -103,7 +103,7 @@ def createPhasor(x, y, xshift, yshift):
     phasor = torch.exp(1j * phase_ramp)
     return phasor, phase_ramp
 
-
+# this step calculates the weighted gaussian filter
 def createWVFilt(lam, mul, sigl, m):
     gaus_lam = torch.exp(-(lam - mul)**2 / (2 * sigl**2))
     mout = torch.sum(m * gaus_lam, dim=2)
@@ -119,9 +119,10 @@ def computeMeas(Hfft, pdf_values, phasor, mout):
     bfft2 = bfft * phasor
     # check fftshift vs ifftshift for clarification
     bout = torch.fft.ifft2(torch.fft.ifftshift(bfft2))
-     # multiply by the weighted gaussian filter
+    # multiply by the weighted gaussian filter
     # can be seen as amplitude modulation where the output values are scaled by the modulation function.
-    b = torch.abs(bout)
+    # this helps turns complex values into real values
+    b = torch.abs(bout) * mout
     return b
 
 # this step calculates the measurement values for a single gaussian object
