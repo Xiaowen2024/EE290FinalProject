@@ -113,18 +113,23 @@ def createWVFilt(lam, mul, sigl, m):
 # this step calculates the measurement values
 def computeMeas(Hfft, pdf_values, phasor, mout):
     # multiply by the Fourier transform of the point spread function
+    #hfft is the fourier transform of the psf
     bfft = Hfft * pdf_values
+    # phasor is shift in real sapce 
     bfft2 = bfft * phasor
-    bout = torch.fft.ifft2(torch.fft.fftshift(bfft2))
+    # check fftshift vs ifftshift for clarification
+    bout = torch.fft.ifft2(torch.fft.ifftshift(bfft2))
      # multiply by the weighted gaussian filter
     # can be seen as amplitude modulation where the output values are scaled by the modulation function.
-    b = (torch.abs(bout) * mout)
+    b = torch.abs(bout)
     return b
 
 # this step calculates the measurement values for a single gaussian object
-
 def forwardSingleGauss(g, coordinates, nx, ny, lam, Hfft, x, y, m):
+    # visualize the intermediate steps
     pdf_values = createGaussFilter(g.covariancematrix, coordinates, nx, ny, g.amplitude)
     phasor, _ = createPhasor(x, y, g.mux, g.muy)
+    # like color filter 
+    # in real space, element wise multiplication with the filter 
     mout = createWVFilt(lam, g.mul, g.sigl, m)
     return computeMeas(Hfft, pdf_values, phasor, mout)
