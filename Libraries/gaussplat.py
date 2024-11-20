@@ -84,20 +84,20 @@ def createGaussFilter(covariance_matrix, coordinates, nx, ny, amplitude, sf=1e-8
     """
     Create a Gaussian filter, which is a 2D Gaussian distribution in the spatial domain.
     """
-    mean = torch.zeros(2, device=device)
-    # Scale the covariance matrix
-    scaleFactor = torch.diag(torch.tensor([sf * nx**2, sf * ny**2], device=device))
-    filterVar = torch.matmul(scaleFactor, covariance_matrix)
-    # Ensure the covariance matrix is positive-definite
-    filterVar = (filterVar + filterVar.T) / 2.0
-    # Create a multivariate normal distribution
-    mvn = MultivariateNormal(mean, filterVar)
-    # Compute the probability density values of the Gaussian filter
-    pdf_values = mvn.log_prob(coordinates).exp() * amplitude
-    return pdf_values.view(ny, nx)
+    mean = torch.zeros(2, device=device) # only computing magnitude of F(G)
+    cov_inv = torch.inverse(covariance_matrix)
+    cov_inv = (cov_inv + cov_inv.T)/2.0 # make it positive definite
+
+    mvn = MultivariateNormal(mean, cov_inv)
+    gauss_f_values = mvn.log_prob(coordinates).exp() * amplitude
+
+    sigx = covariance_matrix[0,0]**(1/2)
+    sigy = covariance_matrix[1,1]**(1/2)
+    gauss_f_values = 2 * torch.pi * sigx * sigy * gauss_f_values # TODO: what scalar?
+    return gauss_f_values.view(ny, nx)
 
 
-
+# depending on the shift, create a phase ramp in the fourier space 
 def createPhasor(x, y, xshift, yshift):
     phase_ramp = 2.0 * torch.pi * (-1 * (xshift * x) - (yshift * y))
     phasor = torch.exp(1j * phase_ramp)
@@ -113,8 +113,9 @@ def createWVFilt(lam, mul, sigl, m):
 # this step calculates the measurement values
 def computeMeas(Hfft, pdf_values, phasor, mout):
     # multiply by the Fourier transform of the point spread function
-    #hfft is the fourier transform of the psf
-    bfft = Hfft * pdf_values
+    # hfft is the fourier transform of the psf
+    # pdf_values should never be off centered 
+    bfft = Hfft * pdf_values 
     # phasor is shift in real sapce 
     bfft2 = bfft * phasor
     # check fftshift vs ifftshift for clarification
@@ -128,9 +129,11 @@ def computeMeas(Hfft, pdf_values, phasor, mout):
 # this step calculates the measurement values for a single gaussian object
 def forwardSingleGauss(g, coordinates, nx, ny, lam, Hfft, x, y, m):
     # visualize the intermediate steps
-    pdf_values = createGaussFilter(g.covariancematrix, coordinates, nx, ny, g.amplitude)
+    # should always be centered and skinner in fourier space
+    gauss_filter = createGaussFilter(g.covariancematrix, coordinates, nx, ny, g.amplitude)
+    # check phasor, phasor should be all vertical shift if only shifted in x
     phasor, _ = createPhasor(x, y, g.mux, g.muy)
     # like color filter 
     # in real space, element wise multiplication with the filter 
     mout = createWVFilt(lam, g.mul, g.sigl, m)
-    return computeMeas(Hfft, pdf_values, phasor, mout)
+    return computeMeas(Hfft, gauss_filter, phasor, mout)
